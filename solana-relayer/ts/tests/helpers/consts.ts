@@ -12,7 +12,7 @@ export const TOKEN_BRIDGE_PID = new PublicKey(
 
 export const LOCALHOST = "http://localhost:8899";
 
-export const relayer_OPERATOR_KEYPAIR = Keypair.fromSecretKey(
+export const RELAYER_OPERATOR_KEYPAIR = Keypair.fromSecretKey(
     Uint8Array.from([
         53, 71, 215, 99, 245, 135, 6, 58, 55, 69, 34, 181, 119, 14, 206, 86, 132,
         140, 250, 100, 177, 123, 13, 111, 90, 85, 1, 142, 197, 230, 213, 34, 9, 100,

@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Clone)]
 pub enum MakerOrTaker {
     Maker,
-    Taker
+    Taker,
 }
 
 impl Default for MakerOrTaker {
@@ -73,7 +73,7 @@ impl Order {
       + 8 // 8 bytes for claim_deadline
       + 8 // 8 bytes for amount
     ;
-    
+
     pub const SEED_PREFIX: &'static [u8; 5] = b"order";
 
     pub fn validate(&self) -> Result<()> {
@@ -111,7 +111,6 @@ impl Order {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use std::mem::size_of;
 
     #[test]
     fn test_config() -> Result<()> {

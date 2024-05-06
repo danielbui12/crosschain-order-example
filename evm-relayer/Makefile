@@ -34,5 +34,3 @@ lib:
 	forge install foundry-rs/forge-std@v1.8.1 --no-git --no-commit
 	forge install openZeppelin/openzeppelin-foundry-upgrades@v0.2.1 --no-git --no-commit
 	forge install openZeppelin/openzeppelin-contracts-upgradeable@v5.0.2 --no-git --no-commit
-
-deploy

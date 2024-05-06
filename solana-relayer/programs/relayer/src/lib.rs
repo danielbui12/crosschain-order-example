@@ -14,7 +14,7 @@ pub mod processor;
 pub mod state;
 pub mod utils;
 
-declare_id!("GSS2BQQYmXSDkB25bwaumRMsaWJNDu18UzUByCWf1NaL");
+declare_id!("AdroeVETVcgC8ckBWCyZDnHeFXVbv1cQ1zkzuZjCe3Kt");
 
 #[program]
 pub mod relayer {

@@ -18,7 +18,7 @@ import { deriveWrappedMintKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tok
 import {
     BUYER_KEYPAIR,
     CORE_BRIDGE_PID,
-    relayer_OPERATOR_KEYPAIR,
+    RELAYER_OPERATOR_KEYPAIR,
     LOCALHOST,
     MINTS_WITH_DECIMALS,
     OWNER_KEYPAIR,
@@ -35,7 +35,7 @@ import {
 } from "./helpers";
 chaiUse(chaiAsPromised);
 
-const relayer_RELAYER_ID = new PublicKey(
+const RELAYER_ID = new PublicKey(
     "6XR3iskY9jsg99WHNwYjLiq13CK9xaHviQ9WQPj76frr",
 );
 const ETHEREUM_TOKEN_BRIDGE_ADDRESS = WORMHOLE_CONTRACTS.ethereum.token_bridge;
@@ -45,8 +45,8 @@ describe("Relayer", function () {
     const owner = OWNER_KEYPAIR;
     const buyer = BUYER_KEYPAIR;
     const seller = SELLER_KEYPAIR;
-    const relayer = RELAYER_KEYPAIR;
-    const relayerOperator = relayer_OPERATOR_KEYPAIR;
+    const relayerOperator = RELAYER_OPERATOR_KEYPAIR;
+    const relayerKp = RELAYER_KEYPAIR;
 
     console.log("owner pubkey:", owner.publicKey.toString());
     console.log("buyer pubkey:", buyer.publicKey.toString());
@@ -73,7 +73,7 @@ describe("Relayer", function () {
     );
     const program = relayer.createRelayerProgramInterface(
         connection,
-        relayer_RELAYER_ID,
+        RELAYER_ID,
     );
 
     describe("Initialize Program", function () {
@@ -88,7 +88,7 @@ describe("Relayer", function () {
         }) =>
             relayer.createInitializeInstruction(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
                 owner.publicKey,
                 TOKEN_BRIDGE_PID,
                 CORE_BRIDGE_PID,
@@ -118,13 +118,13 @@ describe("Relayer", function () {
 
             const senderConfigData = await relayer.getSenderConfigData(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
             );
             expect(senderConfigData.owner).deep.equals(owner.publicKey);
             expect(senderConfigData.finality).equals(0);
 
             const tokenBridgeAccounts = getTokenBridgeDerivedAccounts(
-                relayer_RELAYER_ID,
+                RELAYER_ID,
                 TOKEN_BRIDGE_PID,
                 CORE_BRIDGE_PID,
             );
@@ -150,7 +150,7 @@ describe("Relayer", function () {
 
             const redeemerConfigData = await relayer.getRedeemerConfigData(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
             );
             expect(redeemerConfigData.owner).deep.equals(owner.publicKey);
             expect(redeemerConfigData.relayerFee).equals(relayerFee);
@@ -193,7 +193,7 @@ describe("Relayer", function () {
         }) =>
             relayer.createUpdateRelayerFeeInstruction(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
                 opts?.sender ?? owner.publicKey,
                 opts?.relayerFee ?? relayerFee,
                 opts?.relayerFeePrecision ?? relayerFeePrecision,
@@ -202,11 +202,11 @@ describe("Relayer", function () {
         it("Cannot Update as Non-Owner", async function () {
             await expectIxToFailWithError(
                 await createUpdateRelayerFeeIx({
-                    sender: relayer.publicKey,
+                    sender: relayerKp.publicKey,
                     relayerFee: relayerFee - 1,
                 }),
                 "OwnerOnly",
-                relayer,
+                relayerKp,
             );
         });
 
@@ -235,7 +235,7 @@ describe("Relayer", function () {
 
             const redeemerConfigData = await relayer.getRedeemerConfigData(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
             );
             expect(redeemerConfigData.relayerFee).equals(relayerFee);
             expect(redeemerConfigData.relayerFeePrecision).equals(
@@ -251,7 +251,7 @@ describe("Relayer", function () {
         }) =>
             relayer.createRegisterForeignContractInstruction(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
                 opts?.sender ?? owner.publicKey,
                 TOKEN_BRIDGE_PID,
                 foreignChain,
@@ -263,11 +263,11 @@ describe("Relayer", function () {
             const contractAddress = Buffer.alloc(32, "fbadc0de", "hex");
             await expectIxToFailWithError(
                 await createRegisterForeignContractIx({
-                    sender: relayer.publicKey,
+                    sender: relayerKp.publicKey,
                     contractAddress,
                 }),
                 "OwnerOnly",
-                relayer,
+                relayerKp,
             );
         });
 
@@ -279,10 +279,10 @@ describe("Relayer", function () {
                         .accounts({
                             owner: owner.publicKey,
                             config: relayer.deriveSenderConfigKey(
-                                relayer_RELAYER_ID,
+                                RELAYER_ID,
                             ),
                             foreignContract: relayer.deriveForeignContractKey(
-                                relayer_RELAYER_ID,
+                                RELAYER_ID,
                                 chain,
                             ),
                             tokenBridgeForeignEndpoint: deriveMaliciousTokenBridgeEndpointKey(
@@ -326,7 +326,7 @@ describe("Relayer", function () {
                     const { chain, address } =
                         await relayer.getForeignContractData(
                             connection,
-                            relayer_RELAYER_ID,
+                            RELAYER_ID,
                             foreignChain,
                         );
                     expect(chain).equals(foreignChain);
@@ -354,7 +354,7 @@ describe("Relayer", function () {
                 await wormhole.getPostedMessage(
                     connection,
                     relayer.deriveTokenTransferMessageKey(
-                        relayer_RELAYER_ID,
+                        RELAYER_ID,
                         sequence,
                     ),
                 )
@@ -415,7 +415,7 @@ describe("Relayer", function () {
         ) =>
             relayer.createCreateAnOrderInstruction(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
                 opts?.sender ?? seller.publicKey,
                 mint,
                 DEFAULT_ORDER_DATA.amount,
@@ -434,7 +434,7 @@ describe("Relayer", function () {
         ) =>
             relayer.createPlaceAnOrderInstruction(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
                 opts?.sender ?? buyer.publicKey,
                 mint,
                 DEFAULT_ORDER_DATA.amount,
@@ -454,7 +454,7 @@ describe("Relayer", function () {
         ) =>
             relayer.createCancelTheOrderInstruction(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
                 opts?.sender ?? buyer.publicKey,
                 mint,
                 relayerOperator.publicKey,
@@ -471,7 +471,7 @@ describe("Relayer", function () {
         ) =>
             relayer.createConfirmTheOrderInstruction(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
                 opts?.sender ?? buyer.publicKey,
                 seller.publicKey,
                 mint,
@@ -489,7 +489,7 @@ describe("Relayer", function () {
         ) =>
             relayer.createClaimTheOrderInstruction(
                 connection,
-                relayer_RELAYER_ID,
+                RELAYER_ID,
                 seller.publicKey,
                 mint,
                 orderSalt,
@@ -539,7 +539,7 @@ describe("Relayer", function () {
 
             try {
                 const tmpAccount = relayer.deriveTmpTokenAccountKey(
-                    relayer_RELAYER_ID,
+                    RELAYER_ID,
                     mint,
                     buyer.publicKey,
                     orderSalt,
@@ -554,150 +554,150 @@ describe("Relayer", function () {
             console.log("=".repeat(5), key, "=".repeat(5));
         };
 
-        // describe(`Seller 'create', Buyer 'place' and 'cancel' an Order`, function () {
-        //   const ORDER_SALT = makeId();
+        describe(`Seller 'create', Buyer 'place' and 'cancel' an Order`, function () {
+            const ORDER_SALT = makeId();
 
-        //   it("Create an order", async function () {
-        //     const { value } =
-        //       await connection.getLatestBlockhashAndContext("finalized");
-        //     const transaction = new Transaction({
-        //       ...value,
-        //       feePayer: seller.publicKey,
-        //     });
-        //     transaction.add(await createCreateAnOrderIx(ORDER_SALT));
-        //     transaction.partialSign(relayerOperator);
-        //     /// Serialize the transaction and convert to base64
-        //     const serializedTransaction = transaction.serialize({
-        //       /// We will need Buyer to deserialize and sign the transaction
-        //       requireAllSignatures: false,
-        //     });
-        //     /// save this to db and waiting for buyer partial sign
-        //     const transactionBase64 = serializedTransaction.toString("base64");
+            it("Create an order", async function () {
+                const { value } =
+                    await connection.getLatestBlockhashAndContext("finalized");
+                const transaction = new Transaction({
+                    ...value,
+                    feePayer: seller.publicKey,
+                });
+                transaction.add(await createCreateAnOrderIx(ORDER_SALT));
+                transaction.partialSign(relayerOperator);
+                /// Serialize the transaction and convert to base64
+                const serializedTransaction = transaction.serialize({
+                    /// We will need Buyer to deserialize and sign the transaction
+                    requireAllSignatures: false,
+                });
+                /// save this to db and waiting for buyer partial sign
+                const transactionBase64 = serializedTransaction.toString("base64");
 
-        //     /// Partial sign as Seller
-        //     const deserializedTransaction = Transaction.from(
-        //       Buffer.from(transactionBase64, "base64"),
-        //     );
-        //     deserializedTransaction.partialSign(seller);
-        //     // Serialize the transaction again to send it back to the network
-        //     await expectIxToSucceed(deserializedTransaction.instructions, [
-        //       relayerOperator,
-        //       seller,
-        //     ]);
-        //     await logBalance("CREATE_AN_ORDER", ORDER_SALT);
-        //   });
+                /// Partial sign as Seller
+                const deserializedTransaction = Transaction.from(
+                    Buffer.from(transactionBase64, "base64"),
+                );
+                deserializedTransaction.partialSign(seller);
+                // Serialize the transaction again to send it back to the network
+                await expectIxToSucceed(deserializedTransaction.instructions, [
+                    relayerOperator,
+                    seller,
+                ]);
+                await logBalance("CREATE_AN_ORDER", ORDER_SALT);
+            });
 
-        //   it("Place an order", async function () {
-        //     const { value } =
-        //       await connection.getLatestBlockhashAndContext("finalized");
-        //     const transaction = new Transaction({
-        //       ...value,
-        //       feePayer: buyer.publicKey,
-        //     });
-        //     transaction.add(await createPlaceAnOrderIx(ORDER_SALT));
-        //     transaction.partialSign(relayerOperator);
-        //     /// Serialize the transaction and convert to base64
-        //     const serializedTransaction = transaction.serialize({
-        //       /// We will need Buyer to deserialize and sign the transaction
-        //       requireAllSignatures: false,
-        //     });
-        //     /// save this to db and waiting for buyer partial sign
-        //     const transactionBase64 = serializedTransaction.toString("base64");
+            it("Place an order", async function () {
+                const { value } =
+                    await connection.getLatestBlockhashAndContext("finalized");
+                const transaction = new Transaction({
+                    ...value,
+                    feePayer: buyer.publicKey,
+                });
+                transaction.add(await createPlaceAnOrderIx(ORDER_SALT));
+                transaction.partialSign(relayerOperator);
+                /// Serialize the transaction and convert to base64
+                const serializedTransaction = transaction.serialize({
+                    /// We will need Buyer to deserialize and sign the transaction
+                    requireAllSignatures: false,
+                });
+                /// save this to db and waiting for buyer partial sign
+                const transactionBase64 = serializedTransaction.toString("base64");
 
-        //     /// Partial sign as Buyer
-        //     const deserializedTransaction = Transaction.from(
-        //       Buffer.from(transactionBase64, "base64"),
-        //     );
-        //     deserializedTransaction.partialSign(buyer);
-        //     // Serialize the transaction again to send it back to the network
-        //     await expectIxToSucceed(deserializedTransaction.instructions, [
-        //       relayerOperator,
-        //       buyer,
-        //     ]);
-        //     await logBalance("PLACE_AN_ORDER", ORDER_SALT);
-        //   });
+                /// Partial sign as Buyer
+                const deserializedTransaction = Transaction.from(
+                    Buffer.from(transactionBase64, "base64"),
+                );
+                deserializedTransaction.partialSign(buyer);
+                // Serialize the transaction again to send it back to the network
+                await expectIxToSucceed(deserializedTransaction.instructions, [
+                    relayerOperator,
+                    buyer,
+                ]);
+                await logBalance("PLACE_AN_ORDER", ORDER_SALT);
+            });
 
-        //   it("Cancel the order", async function () {
-        //     await expectIxToSucceed(createCancelTheOrderIx(ORDER_SALT), buyer);
-        //     await logBalance("CANCEL_THE_ORDER", ORDER_SALT);
-        //   });
-        // });
+            it("Cancel the order", async function () {
+                await expectIxToSucceed(createCancelTheOrderIx(ORDER_SALT), buyer);
+                await logBalance("CANCEL_THE_ORDER", ORDER_SALT);
+            });
+        });
 
-        // describe(`Seller 'create', Buyer 'place' and 'confirm', Seller 'claim' an Order in 1 chain`, function () {
-        //   const ORDER_SALT = makeId();
+        describe(`Seller 'create', Buyer 'place' and 'confirm', Seller 'claim' an Order in 1 chain`, function () {
+            const ORDER_SALT = makeId();
 
-        //   it("Create an order", async function () {
-        //     const { value } =
-        //       await connection.getLatestBlockhashAndContext("finalized");
-        //     const transaction = new Transaction({
-        //       ...value,
-        //       feePayer: seller.publicKey,
-        //     });
-        //     transaction.add(await createCreateAnOrderIx(ORDER_SALT));
-        //     transaction.partialSign(relayerOperator);
-        //     /// Serialize the transaction and convert to base64
-        //     const serializedTransaction = transaction.serialize({
-        //       /// We will need Buyer to deserialize and sign the transaction
-        //       requireAllSignatures: false,
-        //     });
-        //     /// save this to db and waiting for buyer partial sign
-        //     const transactionBase64 = serializedTransaction.toString("base64");
+            it("Create an order", async function () {
+                const { value } =
+                    await connection.getLatestBlockhashAndContext("finalized");
+                const transaction = new Transaction({
+                    ...value,
+                    feePayer: seller.publicKey,
+                });
+                transaction.add(await createCreateAnOrderIx(ORDER_SALT));
+                transaction.partialSign(relayerOperator);
+                /// Serialize the transaction and convert to base64
+                const serializedTransaction = transaction.serialize({
+                    /// We will need Buyer to deserialize and sign the transaction
+                    requireAllSignatures: false,
+                });
+                /// save this to db and waiting for buyer partial sign
+                const transactionBase64 = serializedTransaction.toString("base64");
 
-        //     /// Partial sign as Seller
-        //     const deserializedTransaction = Transaction.from(
-        //       Buffer.from(transactionBase64, "base64"),
-        //     );
-        //     deserializedTransaction.partialSign(seller);
-        //     // Serialize the transaction again to send it back to the network
-        //     await expectIxToSucceed(deserializedTransaction.instructions, [
-        //       relayerOperator,
-        //       seller,
-        //     ]);
-        //     await logBalance("CREATE_AN_ORDER", ORDER_SALT);
-        //   });
+                /// Partial sign as Seller
+                const deserializedTransaction = Transaction.from(
+                    Buffer.from(transactionBase64, "base64"),
+                );
+                deserializedTransaction.partialSign(seller);
+                // Serialize the transaction again to send it back to the network
+                await expectIxToSucceed(deserializedTransaction.instructions, [
+                    relayerOperator,
+                    seller,
+                ]);
+                await logBalance("CREATE_AN_ORDER", ORDER_SALT);
+            });
 
-        //   it("Place an order", async function () {
-        //     const { value } =
-        //       await connection.getLatestBlockhashAndContext("finalized");
-        //     const transaction = new Transaction({
-        //       ...value,
-        //       feePayer: buyer.publicKey,
-        //     });
-        //     transaction.add(await createPlaceAnOrderIx(ORDER_SALT));
-        //     transaction.partialSign(relayerOperator);
-        //     /// Serialize the transaction and convert to base64
-        //     const serializedTransaction = transaction.serialize({
-        //       /// We will need Buyer to deserialize and sign the transaction
-        //       requireAllSignatures: false,
-        //     });
-        //     /// save this to db and waiting for buyer partial sign
-        //     const transactionBase64 = serializedTransaction.toString("base64");
+            it("Place an order", async function () {
+                const { value } =
+                    await connection.getLatestBlockhashAndContext("finalized");
+                const transaction = new Transaction({
+                    ...value,
+                    feePayer: buyer.publicKey,
+                });
+                transaction.add(await createPlaceAnOrderIx(ORDER_SALT));
+                transaction.partialSign(relayerOperator);
+                /// Serialize the transaction and convert to base64
+                const serializedTransaction = transaction.serialize({
+                    /// We will need Buyer to deserialize and sign the transaction
+                    requireAllSignatures: false,
+                });
+                /// save this to db and waiting for buyer partial sign
+                const transactionBase64 = serializedTransaction.toString("base64");
 
-        //     /// Partial sign as Buyer
-        //     const deserializedTransaction = Transaction.from(
-        //       Buffer.from(transactionBase64, "base64"),
-        //     );
-        //     deserializedTransaction.partialSign(buyer);
-        //     // Serialize the transaction again to send it back to the network
-        //     await expectIxToSucceed(deserializedTransaction.instructions, [
-        //       relayerOperator,
-        //       buyer,
-        //     ]);
-        //     await logBalance("PLACE_AN_ORDER", ORDER_SALT);
-        //   });
+                /// Partial sign as Buyer
+                const deserializedTransaction = Transaction.from(
+                    Buffer.from(transactionBase64, "base64"),
+                );
+                deserializedTransaction.partialSign(buyer);
+                // Serialize the transaction again to send it back to the network
+                await expectIxToSucceed(deserializedTransaction.instructions, [
+                    relayerOperator,
+                    buyer,
+                ]);
+                await logBalance("PLACE_AN_ORDER", ORDER_SALT);
+            });
 
-        //   it("Confirm the order", async function () {
-        //     await expectIxToSucceed(createConfirmTheOrderIx(ORDER_SALT), buyer);
-        //   });
+            it("Confirm the order", async function () {
+                await expectIxToSucceed(createConfirmTheOrderIx(ORDER_SALT), buyer);
+            });
 
-        //   it("Claim the order", async function () {
-        //     await expectIxToSucceed(
-        //       await createClaimTheOrderIx(ORDER_SALT),
-        //       [seller, relayerOperator],
-        //     );
-        //     await logBalance("CLAIM_THE_ORDER", ORDER_SALT);
-        //   });
-        // });
+            it("Claim the order", async function () {
+                await expectIxToSucceed(
+                    await createClaimTheOrderIx(ORDER_SALT),
+                    [seller, relayerOperator],
+                );
+                await logBalance("CLAIM_THE_ORDER", ORDER_SALT);
+            });
+        });
 
         describe(`For ${isNative ? "Native" : "Wrapped"} With ${decimals} Decimals`, function () {
             describe(`Send Tokens With Payload`, function () {
@@ -712,7 +712,7 @@ describe("Relayer", function () {
                         ? relayer.createSendNativeTokensWithPayloadInstruction
                         : relayer.createSendWrappedTokensWithPayloadInstruction)(
                             connection,
-                            relayer_RELAYER_ID,
+                            RELAYER_ID,
                             opts?.sender ?? buyer.publicKey,
                             TOKEN_BRIDGE_PID,
                             CORE_BRIDGE_PID,
@@ -769,7 +769,7 @@ describe("Relayer", function () {
                 it("Finally Send Tokens With Payload", async function () {
                     const sequence = await getWormholeSequence();
                     const buyerTmpAccount = relayer.deriveTmpTokenAccountKey(
-                        relayer_RELAYER_ID,
+                        RELAYER_ID,
                         relayerOperator.publicKey,
                         buyer.publicKey,
                         ORDER_SALT,
@@ -793,7 +793,7 @@ describe("Relayer", function () {
                     await verifyWormholeMessage(sequence);
                     // await verifyTmpTokenAccountDoesNotExist(
                     //   relayer.deriveTmpTokenAccountKey(
-                    //     relayer_RELAYER_ID,
+                    //     RELAYER_ID,
                     //     relayerOperator.publicKey,
                     //     buyer.publicKey,
                     //     ORDER_SALT
@@ -818,7 +818,7 @@ describe("Relayer", function () {
                         ? relayer.createRedeemNativeTransferWithPayloadInstruction
                         : relayer.createRedeemWrappedTransferWithPayloadInstruction)(
                             connection,
-                            relayer_RELAYER_ID,
+                            RELAYER_ID,
                             seller.publicKey,
                             relayerOperator.publicKey,
                             TOKEN_BRIDGE_PID,
@@ -859,7 +859,7 @@ describe("Relayer", function () {
 
                 const recipientTmpTokenAccount =
                     relayer.deriveTmpTokenAccountKey(
-                        relayer_RELAYER_ID,
+                        RELAYER_ID,
                         relayerOperator.publicKey,
                         seller.publicKey,
                         ORDER_SALT,
@@ -884,7 +884,7 @@ describe("Relayer", function () {
                         isNative ? CHAINS.solana : foreignChain, // tokenChain
                         receiveAmount / truncation, //adjust for decimals
                         CHAINS.solana, // recipientChain
-                        relayer_RELAYER_ID.toBuffer().toString("hex"),
+                        RELAYER_ID.toBuffer().toString("hex"),
                         opts?.foreignContractAddress ?? foreignContractAddress,
                         tokenTransferPayload,
                         batchId,
@@ -920,7 +920,7 @@ describe("Relayer", function () {
                 //         recipientTmpTokenAccount
                 //       );
                 //     const orderAccount = relayer.deriveOrderKey(
-                //       relayer_RELAYER_ID,
+                //       RELAYER_ID,
                 //       relayerOperator.publicKey,
                 //       seller.publicKey,
                 //       ORDER_SALT
@@ -934,9 +934,9 @@ describe("Relayer", function () {
                 //       .accounts({
                 //         seller: seller.publicKey,
                 //         orderAccount: orderAccount,
-                //         config: relayer.deriveRedeemerConfigKey(relayer_RELAYER_ID),
+                //         config: relayer.deriveRedeemerConfigKey(RELAYER_ID),
                 //         foreignContract:
-                //           relayer.deriveForeignContractKey(relayer_RELAYER_ID, parsed.emitterChain as ChainId),
+                //           relayer.deriveForeignContractKey(RELAYER_ID, parsed.emitterChain as ChainId),
                 //         tmpTokenAccount: recipientTmpTokenAccount,
                 //         tokenBridgeProgram: TOKEN_BRIDGE_PID,
                 //         ...tokenBridgeAccounts,

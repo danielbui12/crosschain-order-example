@@ -556,7 +556,7 @@ contract Relayer is
         uint256 product,
         MakerOrTaker direction
     ) public pure returns (uint8 fee) {
-        // TODO: update this formular
+        // TODO: update this formula
         fee = 100;
     }
 

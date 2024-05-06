@@ -8,10 +8,10 @@ members = [
 ]
 
 [programs.localnet]
-relayer = "GSS2BQQYmXSDkB25bwaumRMsaWJNDu18UzUByCWf1NaL"
+relayer = "AdroeVETVcgC8ckBWCyZDnHeFXVbv1cQ1zkzuZjCe3Kt"
 
 [programs.devnet]
-relayer = "GSS2BQQYmXSDkB25bwaumRMsaWJNDu18UzUByCWf1NaL"
+relayer = "AdroeVETVcgC8ckBWCyZDnHeFXVbv1cQ1zkzuZjCe3Kt"
 
 [registry]
 url = "https://api.apr.dev"

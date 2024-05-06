@@ -27,7 +27,7 @@ import chaiAsPromised from "chai-as-promised";
 import {
     BUYER_KEYPAIR,
     CORE_BRIDGE_PID,
-    relayer_OPERATOR_KEYPAIR,
+    RELAYER_OPERATOR_KEYPAIR,
     GOVERNANCE_EMITTER_ADDRESS,
     LOCALHOST,
     MINTS_WITH_DECIMALS,
@@ -49,8 +49,8 @@ describe(" 0: Wormhole", () => {
     const seller = SELLER_KEYPAIR;
     const buyer = BUYER_KEYPAIR;
     const relayer = RELAYER_KEYPAIR;
-    const relayer = relayer_OPERATOR_KEYPAIR;
-    const accounts = [payer, buyer, seller, relayer, relayer];
+    const relayerOperator = RELAYER_OPERATOR_KEYPAIR;
+    const accounts = [payer, buyer, seller, relayer, relayerOperator];
     const defaultMintAmount = 10n ** 6n;
 
     const {

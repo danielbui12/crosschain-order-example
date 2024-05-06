@@ -10,13 +10,9 @@ out/
 # Docs
 docs/
 
-# Dotenv file
-.env
-
 # Module
 node_modules
 ethers-contracts/
-testing.env
 lib/
 
 # Ethers-contracts
