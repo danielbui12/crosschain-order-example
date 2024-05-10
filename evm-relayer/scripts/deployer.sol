@@ -78,7 +78,7 @@ contract UpgradeRelayerV2 is DeployScript {
 
     //slither-disable-next-line reentrancy-no-eth
     function _run() internal override upgrade {
-        Relayers c = new Relayer();
+        Relayer c = new Relayer();
         implementation = address(c);
         data = "";
     }

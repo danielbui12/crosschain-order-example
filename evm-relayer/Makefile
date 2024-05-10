@@ -21,7 +21,7 @@ build: dependencies
 	yarn typechain --target=ethers-v5 --out-dir=ethers-contracts out/*/*.json
 
 dependencies: node_modules \
-    lib/forge-std lib/openzeppelin-contracts
+    lib/forge-std lib/openzeppelin-contracts-upgradeable lib/openzeppelin-foundry-upgrades
 
 clean:
 	forge clean

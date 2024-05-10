@@ -121,7 +121,15 @@ contract Relayer is
         address token_,
         bytes calldata signature_
     ) external payable nonExistingOrder(orderId_) {
-        if (!_isValidSignature(orderId_, amount_, token_, signature_)) {
+        if (
+            !_isValidSignature(
+                orderId_,
+                amount_,
+                token_,
+                msg.sender,
+                signature_
+            )
+        ) {
             revert Forbidden("invalid signature");
         }
         if (amount_ == 0) {
@@ -158,7 +166,7 @@ contract Relayer is
         address token_,
         bytes calldata signature_
     ) external payable {
-        if (!_isValidSignature(orderId_, 0, token_, signature_)) {
+        if (!_isValidSignature(orderId_, 0, token_, msg.sender, signature_)) {
             revert Forbidden("invalid signature");
         }
         Order storage _order = _state.orders[msg.sender][orderId_];
@@ -195,7 +203,7 @@ contract Relayer is
         address token_,
         bytes calldata signature_
     ) external payable {
-        if (!_isValidSignature(orderId_, 0, token_, signature_)) {
+        if (!_isValidSignature(orderId_, 0, token_, msg.sender, signature_)) {
             revert Forbidden("invalid signature");
         }
 
@@ -326,35 +334,9 @@ contract Relayer is
     function redeemTransferWithPayload(
         bytes memory encodedTransferMessage
     ) public {
-        /**
-         * parse the encoded Wormhole message
-         *
-         * SECURITY: This message not been verified by the Wormhole core layer yet.
-         * The encoded payload can only be trusted once the message has been verified
-         * by the Wormhole core contract. In this case, the message will be verified
-         * by a call to the token bridge contract in subsequent actions.
-         */
         IWormhole.VM memory parsedMessage = wormhole().parseVM(
             encodedTransferMessage
         );
-
-        /**
-         * Since this contract allows transfers for any token, it needs
-         * to find the token address (on this chain) before redeeming the transfer
-         * so that it can compute the balance change before and after redeeming
-         * the transfer. The amount encoded in the payload could be incorrect,
-         * since fee-on-transfer tokens are supported by the token bridge.
-         *
-         * NOTE: The token bridge truncates the encoded amount for any token
-         * with decimals greater than 8. This is to support blockchains that
-         * cannot handle transfer amounts exceeding max(uint64).
-         */
-        // address localTokenAddress = fetchLocalAddressFromTransferMessage(
-        //     parsedMessage.payload
-        // );
-
-        // // check balance before completing the transfer
-        // uint256 balanceBefore = getBalance(localTokenAddress);
 
         // cache the token bridge instance
         ITokenBridge bridge = tokenBridge();
@@ -367,9 +349,6 @@ contract Relayer is
         bytes memory transferPayload = bridge.completeTransferWithPayload(
             encodedTransferMessage
         );
-
-        // // compute and save the balance difference after completing the transfer
-        // uint256 amountTransferred = getBalance(localTokenAddress) - balanceBefore;
 
         // parse the wormhole message payload into the `TransferWithPayload` struct
         ITokenBridge.TransferWithPayload memory transfer = bridge
@@ -386,41 +365,11 @@ contract Relayer is
         // parse the RelayerMessage payload from the `TransferWithPayload` struct
         RelayerMessage memory relayerMessage = decodePayload(transfer.payload);
 
-        // // compute the relayer fee in terms of the transferred token
-        // uint256 relayerFee = calculateRelayerFee(amountTransferred);
-
         // cache the recipient address
         address recipient = bytes32ToAddress(relayerMessage.targetRecipient);
         if (recipient != address(this)) {
             revert Forbidden("invalid recipient");
         }
-        /**
-         * If the caller is the `transferRecipient` (self redeem) or the relayer fee
-         * is set to zero, send the full token amount to the recipient. Otherwise,
-         * send the relayer the calculated fee and the recipient the remainder.
-         */
-        // if (relayerFee == 0 || msg.sender == recipient) {
-        //     // send the full amount to the recipient
-        //     SafeERC20.safeTransfer(
-        //         IERC20(localTokenAddress),
-        //         recipient,
-        //         amountTransferred
-        //     );
-        // } else {
-        //     // pay the relayer
-        //     SafeERC20.safeTransfer(
-        //         IERC20(localTokenAddress),
-        //         _msgSender(),
-        //         relayerFee
-        //     );
-
-        //     // send the tokens (less relayer fees) to the recipient
-        //     SafeERC20.safeTransfer(
-        //         IERC20(localTokenAddress),
-        //         recipient,
-        //         amountTransferred - relayerFee
-        //     );
-        // }
     }
 
     /**
@@ -440,50 +389,6 @@ contract Relayer is
      */
     function calculateRelayerFee(uint256 amount) public view returns (uint256) {
         return (amount * relayerFeePercentage()) / feePrecision();
-    }
-
-    /**
-     * @notice Parses the encoded address and chainId from a `TransferWithPayload`
-     * message. Finds the address of the wrapped token contract if the token is not
-     * native to this chain.
-     * @param payload Encoded `TransferWithPayload` message
-     * @return localAddress Address of the encoded (bytes32 format) token address on
-     * this chain.
-     */
-    function fetchLocalAddressFromTransferMessage(
-        bytes memory payload
-    ) public view returns (address localAddress) {
-        // parse the source token address and chainId
-        bytes32 sourceAddress = payload.toBytes32(33);
-        uint16 tokenChain = payload.toUint16(65);
-
-        // Fetch the wrapped address from the token bridge if the token
-        // is not from this chain.
-        if (tokenChain != chainId()) {
-            // identify wormhole token bridge wrapper
-            localAddress = tokenBridge().wrappedAsset(
-                tokenChain,
-                sourceAddress
-            );
-            require(localAddress != address(0), "token not attested");
-        } else {
-            // return the encoded address if the token is native to this chain
-            localAddress = bytes32ToAddress(sourceAddress);
-        }
-    }
-
-    function getBalance(address token) internal view returns (uint256 balance) {
-        // fetch the specified token balance for this contract
-        (, bytes memory queriedBalance) = token.staticcall(
-            abi.encodeWithSelector(IERC20.balanceOf.selector, address(this))
-        );
-        balance = abi.decode(queriedBalance, (uint256));
-    }
-
-    function addressToBytes32(
-        address address_
-    ) internal pure returns (bytes32) {
-        return bytes32(uint256(uint160(address_)));
     }
 
     function bytes32ToAddress(
@@ -572,10 +477,11 @@ contract Relayer is
         bytes32 orderId_,
         uint256 amount_,
         address token_,
+        address caller,
         bytes calldata signature_
     ) internal view returns (bool) {
         bytes32 encodeData = keccak256(
-            abi.encodePacked(orderId_, amount_, token_, msg.sender)
+            abi.encodePacked(orderId_, amount_, token_, caller)
         );
         address recoveryAddress = encodeData.toEthSignedMessageHash().recover(
             signature_
