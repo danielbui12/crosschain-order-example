@@ -1,2 +1,0 @@
-[env]
-RELAYER_PROGRAM_ID_FILE = "../../../target/deploy/relayer.bin"
